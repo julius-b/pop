@@ -415,6 +415,75 @@ func (c *Connection) UpdateColumns(model interface{}, columnNames ...string) err
 	})
 }
 
+// ValidateAndUpsert applies validation rules on the given entry, then upserts it
+// if the validation succeed, excluding the given columns.
+//
+// TODO
+// - if c.eager {}, if processAssoc {}
+//
+// If model is a slice, each item of the slice is validated then upserted in the database.
+func (c *Connection) ValidateAndUpsert(model interface{}, constraint string, excludeColumns ...string) (*validate.Errors, error) {
+	sm := &Model{Value: model}
+	if err := sm.beforeValidate(c); err != nil {
+		return nil, err
+	}
+	verrs, err := sm.validateUpsert(c)
+	if err != nil {
+		return verrs, err
+	}
+	if verrs.HasAny() {
+		return verrs, nil
+	}
+
+	return verrs, c.Upsert(model, constraint, excludeColumns...)
+}
+
+// Upsert adds a new given entry to the database, excluding the given columns, if it doesn't exist
+// and updates it otherwise.
+// It updates `created_at` and `updated_at` columns automatically.
+//
+// If model is a slice, each item of the slice is created or updated in the database.
+//
+// Create support two modes:
+// * Flat (default): Associate existing nested objects only. NO creation or update of nested objects.
+// * Eager: Associate existing nested objects and create non-existent objects. NO change to existing objects.
+func (c *Connection) Upsert(model interface{}, constraint string, excludeColumns ...string) error {
+	sm := &Model{Value: model}
+	return sm.iterate(func(m *Model) error {
+		return c.timeFunc("Create", func() error {
+			var err error
+
+			if err = m.beforeSave(c); err != nil {
+				return err
+			}
+
+			if err = m.beforeUpsert(c); err != nil {
+				return err
+			}
+
+			tn := m.TableName()
+			cols := columns.ForStructWithAlias(m.Value, tn, m.As)
+
+			if tn == sm.TableName() {
+				cols.Remove(excludeColumns...)
+			}
+
+			m.touchCreatedAt()
+			m.touchUpdatedAt()
+
+			if err = c.Dialect.Upsert(c.Store, m, cols, constraint); err != nil {
+				return err
+			}
+
+			if err = m.afterUpsert(c); err != nil {
+				return err
+			}
+
+			return m.afterSave(c)
+		})
+	})
+}
+
 // Destroy deletes a given entry from the database.
 //
 // If model is a slice, each item of the slice is deleted from the database.

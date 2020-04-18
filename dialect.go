@@ -5,13 +5,17 @@ import (
 
 	"github.com/gobuffalo/fizz"
 	"github.com/gobuffalo/pop/columns"
+	"github.com/pkg/errors"
 )
+
+var ErrNotImplemented = errors.New("sql: not implemented")
 
 type crudable interface {
 	SelectOne(store, *Model, Query) error
 	SelectMany(store, *Model, Query) error
 	Create(store, *Model, columns.Columns) error
 	Update(store, *Model, columns.Columns) error
+	Upsert(store, *Model, columns.Columns, string) error
 	Destroy(store, *Model) error
 }
 

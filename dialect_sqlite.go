@@ -95,6 +95,10 @@ func (m *sqlite) Update(s store, model *Model, cols columns.Columns) error {
 	})
 }
 
+func (p *sqlite) Upsert(s store, model *Model, cols columns.Columns, constraint string) error {
+	return ErrNotImplemented
+}
+
 func (m *sqlite) Destroy(s store, model *Model) error {
 	return m.locker(m.smGil, func() error {
 		return errors.Wrap(genericDestroy(s, model, m), "sqlite destroy")

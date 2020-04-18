@@ -84,6 +84,39 @@ func (p *postgresql) Update(s store, model *Model, cols columns.Columns) error {
 	return genericUpdate(s, model, cols, p)
 }
 
+func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constraint string) error {
+	keyType := model.PrimaryKeyType()
+	switch keyType {
+	case "int", "int64":
+		cols.Remove("id")
+		id := struct {
+			ID int `db:"id"`
+		}{}
+		w := cols.Writeable()
+		var query string
+		if len(w.Cols) > 0 {
+			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateString(p))
+		} else {
+			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id", p.Quote(model.TableName()), constraint, w.QuotedUpdateString(p))
+		}
+		log(logging.SQL, query)
+		stmt, err := s.PrepareNamed(query)
+		if err != nil {
+			return err
+		}
+		err = stmt.Get(&id, model.Value)
+		if err != nil {
+			if err := stmt.Close(); err != nil {
+				return errors.WithMessage(err, "failed to close statement")
+			}
+			return err
+		}
+		model.setID(id.ID)
+		return errors.WithMessage(stmt.Close(), "failed to close statement")
+	}
+	return ErrNotImplemented
+}
+
 func (p *postgresql) Destroy(s store, model *Model) error {
 	stmt := p.TranslateSQL(fmt.Sprintf("DELETE FROM %s WHERE %s", p.Quote(model.TableName()), model.whereID()))
 	_, err := genericExec(s, stmt, model.ID())
