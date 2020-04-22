@@ -468,6 +468,7 @@ func (c *Connection) Upsert(model interface{}, constraint string, excludeColumns
 				cols.Remove(excludeColumns...)
 			}
 
+			// TODO at this point, the db has never been queried -> createdAt is not set and will be overridden
 			m.touchCreatedAt()
 			m.touchUpdatedAt()
 

@@ -29,3 +29,18 @@ func (c Columns) QuotedUpdateString(quoter quoter) string {
 	sort.Strings(xs)
 	return strings.Join(xs, ", ")
 }
+
+func (c Columns) QuotedUpdateStringWithExclusions(quoter quoter, excludeColumns ...string) string {
+	var xs []string
+	outer:
+	for _, t := range c.Cols {
+		for _, name := range excludeColumns {
+			if t.Name == name {
+				continue outer
+			}
+		}
+		xs = append(xs, t.QuotedUpdateString(quoter))
+	}
+	sort.Strings(xs)
+	return strings.Join(xs, ", ")
+}

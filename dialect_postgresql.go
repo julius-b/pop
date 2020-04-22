@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/gobuffalo/fizz"
@@ -91,13 +92,14 @@ func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constra
 		cols.Remove("id")
 		id := struct {
 			ID int `db:"id"`
+			CreatedAt time.Time `db:"created_at"`
 		}{}
 		w := cols.Writeable()
 		var query string
 		if len(w.Cols) > 0 {
-			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateString(p))
+			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateStringWithExclusions(p, "created_at"))
 		} else {
-			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id", p.Quote(model.TableName()), constraint, w.QuotedUpdateString(p))
+			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), constraint, w.QuotedUpdateStringWithExclusions(p, "created_at"))
 		}
 		log(logging.SQL, query)
 		stmt, err := s.PrepareNamed(query)
@@ -112,6 +114,7 @@ func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constra
 			return err
 		}
 		model.setID(id.ID)
+		model.setCreatedAt(id.CreatedAt)
 		return errors.WithMessage(stmt.Close(), "failed to close statement")
 	}
 	return ErrNotImplemented
