@@ -422,7 +422,7 @@ func (c *Connection) UpdateColumns(model interface{}, columnNames ...string) err
 // - if c.eager {}, if processAssoc {}
 //
 // If model is a slice, each item of the slice is validated then upserted in the database.
-func (c *Connection) ValidateAndUpsert(model interface{}, constraint string, excludeColumns ...string) (*validate.Errors, error) {
+func (c *Connection) ValidateAndUpsert(model interface{}, constraint string, insertID bool, excludeColumns ...string) (*validate.Errors, error) {
 	sm := &Model{Value: model}
 	if err := sm.beforeValidate(c); err != nil {
 		return nil, err
@@ -435,7 +435,7 @@ func (c *Connection) ValidateAndUpsert(model interface{}, constraint string, exc
 		return verrs, nil
 	}
 
-	return verrs, c.Upsert(model, constraint, excludeColumns...)
+	return verrs, c.Upsert(model, constraint, insertID, excludeColumns...)
 }
 
 // Upsert adds a new given entry to the database, excluding the given columns, if it doesn't exist
@@ -447,7 +447,7 @@ func (c *Connection) ValidateAndUpsert(model interface{}, constraint string, exc
 // Create support two modes:
 // * Flat (default): Associate existing nested objects only. NO creation or update of nested objects.
 // * Eager: Associate existing nested objects and create non-existent objects. NO change to existing objects.
-func (c *Connection) Upsert(model interface{}, constraint string, excludeColumns ...string) error {
+func (c *Connection) Upsert(model interface{}, constraint string, insertID bool, excludeColumns ...string) error {
 	sm := &Model{Value: model}
 	return sm.iterate(func(m *Model) error {
 		return c.timeFunc("Create", func() error {
@@ -472,7 +472,7 @@ func (c *Connection) Upsert(model interface{}, constraint string, excludeColumns
 			m.touchCreatedAt()
 			m.touchUpdatedAt()
 
-			if err = c.Dialect.Upsert(c.Store, m, cols, constraint); err != nil {
+			if err = c.Dialect.Upsert(c.Store, m, cols, constraint, insertID); err != nil {
 				return err
 			}
 

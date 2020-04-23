@@ -85,11 +85,17 @@ func (p *postgresql) Update(s store, model *Model, cols columns.Columns) error {
 	return genericUpdate(s, model, cols, p)
 }
 
-func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constraint string) error {
+func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constraint string, insertID bool) error {
 	keyType := model.PrimaryKeyType()
 	switch keyType {
 	case "int", "int64":
-		cols.Remove("id")
+		// only allow inserting the ID if it's actually set
+		fbn, err := model.fieldByName("ID")
+		if insertID && err == nil && !IsZeroOfUnderlyingType(fbn.Interface()) {
+			cols.Cols["id"].Writeable = true
+		} else {
+			cols.Remove("id")
+		}
 		id := struct {
 			ID int `db:"id"`
 			CreatedAt time.Time `db:"created_at"`
@@ -97,9 +103,9 @@ func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constra
 		w := cols.Writeable()
 		var query string
 		if len(w.Cols) > 0 {
-			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateStringWithExclusions(p, "created_at"))
+			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateString(p, "created_at"))
 		} else {
-			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), constraint, w.QuotedUpdateStringWithExclusions(p, "created_at"))
+			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), constraint, w.QuotedUpdateString(p, "created_at"))
 		}
 		log(logging.SQL, query)
 		stmt, err := s.PrepareNamed(query)

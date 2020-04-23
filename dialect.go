@@ -15,7 +15,7 @@ type crudable interface {
 	SelectMany(store, *Model, Query) error
 	Create(store, *Model, columns.Columns) error
 	Update(store, *Model, columns.Columns) error
-	Upsert(store, *Model, columns.Columns, string) error
+	Upsert(store, *Model, columns.Columns, string, bool) error
 	Destroy(store, *Model) error
 }
 

@@ -95,7 +95,7 @@ func (m *sqlite) Update(s store, model *Model, cols columns.Columns) error {
 	})
 }
 
-func (p *sqlite) Upsert(s store, model *Model, cols columns.Columns, constraint string) error {
+func (p *sqlite) Upsert(s store, model *Model, cols columns.Columns, constraint string, insertID bool) error {
 	return ErrNotImplemented
 }
 

@@ -73,6 +73,8 @@ func ts(s string) string {
 	return PDB.Dialect.TranslateSQL(s)
 }
 
+const UserUniqueKey = "users_pkey"
+
 type User struct {
 	ID           int           `db:"id"`
 	UserName     string        `db:"user_name"`

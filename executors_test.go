@@ -1424,6 +1424,115 @@ func Test_Update_UUID(t *testing.T) {
 	})
 }
 
+func Test_Upsert_Create(t *testing.T) {
+	if PDB == nil {
+		t.Skip("skipping integration tests")
+	}
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		count, _ := tx.Count(&User{})
+		user := User{Name: nulls.NewString("Stan Shunpike")}
+		err := tx.Upsert(&user, UserUniqueKey, false)
+		r.NoError(err)
+		r.NotEqual(0, user.ID)
+
+		ctx, _ := tx.Count(&User{})
+		r.Equal(count+1, ctx)
+
+		u := User{}
+		q := tx.Where("name = ?", "Stan Shunpike")
+		err = q.First(&u)
+		r.NoError(err)
+		r.Equal("Stan Shunpike", user.Name.String)
+	})
+}
+
+func Test_Upsert_Update(t *testing.T) {
+	if PDB == nil {
+		t.Skip("skipping integration tests")
+	}
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		insertPrepUser := User{Name: nulls.NewString("Alastor 'Mad-Eye' Moody")}
+		err := tx.Create(&insertPrepUser, UserUniqueKey)
+		r.NoError(err)
+		r.NotEqual(0, insertPrepUser.ID)
+
+		user := User{}
+		q := tx.Where("name = ?", "Alastor 'Mad-Eye' Moody")
+		err = q.First(&user)
+		r.NoError(err)
+		initialID := user.ID
+		initialCreatedAt := user.CreatedAt
+
+		// change name
+		user.Name = nulls.NewString("Barty Crouch Jr")
+
+		// for this test, we care about the ID
+		err = tx.Upsert(&user, UserUniqueKey, true)
+		r.NoError(err)
+
+		// ensure ID & CreatedAt stayed the same
+		r.Equal(initialID, user.ID)
+		r.Equal(initialCreatedAt, user.CreatedAt)
+
+		// ensure new value exists
+		u := User{}
+		q = tx.Where("name = ?", "Barty Crouch Jr")
+		err = q.First(&u)
+		r.NoError(err)
+		r.Equal("Barty Crouch Jr", user.Name.String)
+
+		// ensure old value no longer exists (array to prevent err)
+		usersWithOldName := []User{}
+		q = tx.Where("name = ?", "Alastor 'Mad-Eye' Moody")
+		err = q.All(&usersWithOldName)
+		r.NoError(err)
+		r.Equal(0, len(usersWithOldName))
+	})
+}
+
+func Test_Upsert_Update_With_Composite_Constraint(t *testing.T) {
+	if PDB == nil {
+		t.Skip("skipping integration tests")
+	}
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		// using the composite key for this example
+		// usually, only one value is user per model across the application
+		userUniqueKey := "users_user_name_email_key"
+
+		// register composite constraint
+		err := tx.RawQuery("ALTER TABLE users ADD UNIQUE(user_name, email)").Exec()
+		r.NoError(err)
+
+		user := User{Name: nulls.NewString("User"), UserName: "user", Email: "user@gobuffalo.io"}
+		err = tx.Create(&user, userUniqueKey)
+		r.NoError(err)
+		r.NotEqual(0, user.ID)
+		initialID := user.ID
+
+		// change name (UserName & Email stay the same)
+		user.Name = nulls.NewString("User (updated)")
+		err = tx.Upsert(&user, userUniqueKey, false)
+		r.NoError(err)
+
+		// ensure ID stayed the same
+		r.Equal(initialID, user.ID)
+
+		// change part composite key
+		user.UserName = "user_updated"
+		err = tx.Upsert(&user, userUniqueKey, false)
+		r.NoError(err)
+
+		// ensure ID did not stay the same
+		r.NotEqual(initialID, user.ID)
+	})
+}
+
 func Test_Destroy(t *testing.T) {
 	if PDB == nil {
 		t.Skip("skipping integration tests")

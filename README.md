@@ -7,6 +7,8 @@
 
 # POP
 
+`UPSERT` user-guide: [click here](UPSERT.md)
+
 ## A Tasty Treat For All Your Database Needs
 
 So what does Pop do exactly? Well, it wraps the absolutely amazing [https://github.com/jmoiron/sqlx](https://github.com/jmoiron/sqlx) library. It cleans up some of the common patterns and work flows usually associated with dealing with databases in Go.

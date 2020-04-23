@@ -98,7 +98,7 @@ func (p *cockroach) Update(s store, model *Model, cols columns.Columns) error {
 	return genericUpdate(s, model, cols, p)
 }
 
-func (p *cockroach) Upsert(s store, model *Model, cols columns.Columns, constraint string) error {
+func (p *cockroach) Upsert(s store, model *Model, cols columns.Columns, constraint string, insertID bool) error {
 	return ErrNotImplemented
 }
 
