@@ -91,6 +91,10 @@ func (m *mysql) Update(s store, model *Model, cols columns.Columns) error {
 	return errors.Wrap(genericUpdate(s, model, cols, m), "mysql update")
 }
 
+func (p *mysql) Upsert(s store, model *Model, cols columns.Columns, constraint string, insertID bool) error {
+	return ErrNotImplemented
+}
+
 func (m *mysql) Destroy(s store, model *Model) error {
 	return errors.Wrap(genericDestroy(s, model, m), "mysql destroy")
 }

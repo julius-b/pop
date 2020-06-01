@@ -159,6 +159,13 @@ func (m *Model) setID(i interface{}) {
 	}
 }
 
+func (m *Model) setCreatedAt(createdAt time.Time) {
+	fbn, err := m.fieldByName("CreatedAt")
+	if err == nil {
+		fbn.Set(reflect.ValueOf(createdAt))
+	}
+}
+
 func (m *Model) touchCreatedAt() {
 	fbn, err := m.fieldByName("CreatedAt")
 	if err == nil {

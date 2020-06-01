@@ -84,6 +84,17 @@ func (m *Model) beforeUpdate(c *Connection) error {
 	return nil
 }
 
+type BeforeUpsertable interface {
+	BeforeUpsert(*Connection) error
+}
+
+func (m *Model) beforeUpsert(c *Connection) error {
+	if x, ok := m.Value.(BeforeUpsertable); ok {
+		return x.BeforeUpsert(c)
+	}
+	return nil
+}
+
 // BeforeDestroyable callback will be called before a record is
 // destroyed in the database.
 type BeforeDestroyable interface {
@@ -120,6 +131,17 @@ type AfterDestroyable interface {
 func (m *Model) afterDestroy(c *Connection) error {
 	if x, ok := m.Value.(AfterDestroyable); ok {
 		return x.AfterDestroy(c)
+	}
+	return nil
+}
+
+type AfterUpsertable interface {
+	AfterUpsert(*Connection) error
+}
+
+func (m *Model) afterUpsert(c *Connection) error {
+	if x, ok := m.Value.(AfterUpsertable); ok {
+		return x.AfterUpsert(c)
 	}
 	return nil
 }

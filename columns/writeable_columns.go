@@ -21,9 +21,16 @@ func (c WriteableColumns) UpdateString() string {
 }
 
 // QuotedUpdateString returns the quoted SQL column list part of the UPDATE query.
-func (c Columns) QuotedUpdateString(quoter quoter) string {
+// excludeColumns will be excluded
+func (c Columns) QuotedUpdateString(quoter quoter, excludeColumns ...string) string {
 	var xs []string
+outer:
 	for _, t := range c.Cols {
+		for _, name := range excludeColumns {
+			if t.Name == name {
+				continue outer
+			}
+		}
 		xs = append(xs, t.QuotedUpdateString(quoter))
 	}
 	sort.Strings(xs)

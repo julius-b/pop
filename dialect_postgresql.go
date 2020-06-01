@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/gobuffalo/fizz"
@@ -86,6 +87,47 @@ func (p *postgresql) Create(s store, model *Model, cols columns.Columns) error {
 
 func (p *postgresql) Update(s store, model *Model, cols columns.Columns) error {
 	return genericUpdate(s, model, cols, p)
+}
+
+func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constraint string, insertID bool) error {
+	keyType := model.PrimaryKeyType()
+	switch keyType {
+	case "int", "int64":
+		// only allow inserting the ID if it's actually set
+		fbn, err := model.fieldByName("ID")
+		if insertID && err == nil && !IsZeroOfUnderlyingType(fbn.Interface()) {
+			cols.Cols["id"].Writeable = true
+		} else {
+			cols.Remove("id")
+		}
+		id := struct {
+			ID        int       `db:"id"`
+			CreatedAt time.Time `db:"created_at"`
+		}{}
+		w := cols.Writeable()
+		var query string
+		if len(w.Cols) > 0 {
+			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateString(p, "created_at"))
+		} else {
+			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), constraint, w.QuotedUpdateString(p, "created_at"))
+		}
+		log(logging.SQL, query)
+		stmt, err := s.PrepareNamed(query)
+		if err != nil {
+			return err
+		}
+		err = stmt.Get(&id, model.Value)
+		if err != nil {
+			if err := stmt.Close(); err != nil {
+				return errors.WithMessage(err, "failed to close statement")
+			}
+			return err
+		}
+		model.setID(id.ID)
+		model.setCreatedAt(id.CreatedAt)
+		return errors.WithMessage(stmt.Close(), "failed to close statement")
+	}
+	return ErrNotImplemented
 }
 
 func (p *postgresql) Destroy(s store, model *Model) error {

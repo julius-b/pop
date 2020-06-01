@@ -101,6 +101,10 @@ func (p *cockroach) Update(s store, model *Model, cols columns.Columns) error {
 	return genericUpdate(s, model, cols, p)
 }
 
+func (p *cockroach) Upsert(s store, model *Model, cols columns.Columns, constraint string, insertID bool) error {
+	return ErrNotImplemented
+}
+
 func (p *cockroach) Destroy(s store, model *Model) error {
 	stmt := p.TranslateSQL(fmt.Sprintf("DELETE FROM %s WHERE %s", p.Quote(model.TableName()), model.whereID()))
 	_, err := genericExec(s, stmt, model.ID())
