@@ -19,9 +19,15 @@
 > despite these severe limitations, it has served me well so far ;)
 
 ## Solutions (?)
+- execute Upsert for all `associations`
 - automatically use the `PrimaryKey` as `CONSTRAINT` if
   - it's actually defined (!= 0)
   - OR no UniqueKey was submitted
+
+## Add to a gobuffalo project
+Append the following to the end of `go.mod`:\
+`replace github.com/gobuffalo/pop/v5 => github.com/julius-b/pop/v5 v5.1.3-upsert`\
+v4: `replace github.com/gobuffalo/pop => github.com/julius-b/pop v4.13.1-upsert+incompatible`
 
 ## Usage
 `fizz` can only create unique **indicies**, so you have to define an additional unique **constraint** in your `models.up.fizz` file:
