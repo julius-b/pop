@@ -24,6 +24,15 @@
   - it's actually defined (!= 0)
   - OR no UniqueKey was submitted
 
+TODO "INSERT ... RETURNING ... ON CONFLICT DO ..." will only return the values that were actually inserted -> could be helpful for callers
+
+example:
+```sql
+INSERT INTO <table> (<key1>, <key2>, <key3>) VALUES (<val1>, <val2>, <val3>) ON CONFLICT ON CONSTRAINT <table>_<key1>_<key2>_key DO UPDATE SET <key1>=<val1>, <key2>=<val2>, <key3>=<val3> returning id;
+want: return the id of the already registered entity
+have: error because not enough fields (i.e. <key4> missing, even though <key1> & <key2> already exist)
+```
+
 ## Add to a gobuffalo project
 Append the following to the end of `go.mod`:\
 `replace github.com/gobuffalo/pop/v5 => github.com/julius-b/pop/v5 v5.1.3-upsert`\
