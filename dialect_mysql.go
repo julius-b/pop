@@ -2,7 +2,6 @@ package pop
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
 	"io"
 	"os/exec"
@@ -110,7 +109,7 @@ func (m *mysql) SelectMany(s store, models *Model, query Query) error {
 // CreateDB creates a new database, from the given connection credentials
 func (m *mysql) CreateDB() error {
 	deets := m.ConnectionDetails
-	db, err := sql.Open(deets.Dialect, m.urlWithoutDb())
+	db, err := openPotentiallyInstrumentedConnection(m, m.urlWithoutDb())
 	if err != nil {
 		return errors.Wrapf(err, "error creating MySQL database %s", deets.Database)
 	}
@@ -132,7 +131,7 @@ func (m *mysql) CreateDB() error {
 // DropDB drops an existing database, from the given connection credentials
 func (m *mysql) DropDB() error {
 	deets := m.ConnectionDetails
-	db, err := sql.Open(deets.Dialect, m.urlWithoutDb())
+	db, err := openPotentiallyInstrumentedConnection(m, m.urlWithoutDb())
 	if err != nil {
 		return errors.Wrapf(err, "error dropping MySQL database %s", deets.Database)
 	}
@@ -169,7 +168,7 @@ func (m *mysql) DumpSchema(w io.Writer) error {
 
 // LoadSchema executes a schema sql file against the configured database.
 func (m *mysql) LoadSchema(r io.Reader) error {
-	return genericLoadSchema(m.ConnectionDetails, m.MigrationURL(), r)
+	return genericLoadSchema(m, r)
 }
 
 // TruncateAll truncates all tables for the given connection.

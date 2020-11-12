@@ -464,6 +464,52 @@ func Test_Create_With_Slice(t *testing.T) {
 	})
 }
 
+func Test_Create_With_Non_ID_PK(t *testing.T) {
+	if PDB == nil {
+		t.Skip("skipping integration tests")
+	}
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		count, _ := tx.Count(&CrookedColour{})
+		djs := []CrookedColour{
+			{Name: "Phil Slabber"},
+			{Name: "Leon Debaughn"},
+			{Name: "Liam Merrett-Park"},
+		}
+		err := tx.Create(&djs)
+		r.NoError(err)
+
+		ctx, _ := tx.Count(&CrookedColour{})
+		r.Equal(count+3, ctx)
+		r.NotEqual(djs[0].ID, djs[1].ID)
+		r.NotEqual(djs[1].ID, djs[2].ID)
+	})
+}
+
+func Test_Create_With_Non_ID_PK_String(t *testing.T) {
+	if PDB == nil {
+		t.Skip("skipping integration tests")
+	}
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		count, _ := tx.Count(&CrookedSong{})
+		djs := []CrookedSong{
+			{ID: "Flow"},
+			{ID: "Do It Like You"},
+			{ID: "I C Light"},
+		}
+		err := tx.Create(&djs)
+		r.NoError(err)
+
+		ctx, _ := tx.Count(&CrookedSong{})
+		r.Equal(count+3, ctx)
+		r.NotEqual(djs[0].ID, djs[1].ID)
+		r.NotEqual(djs[1].ID, djs[2].ID)
+	})
+}
+
 func Test_Eager_Create_Has_Many(t *testing.T) {
 	if PDB == nil {
 		t.Skip("skipping integration tests")
@@ -1502,8 +1548,8 @@ func Test_Upsert_Update_With_Composite_Constraint(t *testing.T) {
 		r := require.New(t)
 
 		// using the composite key for this example
-		// usually, only one value is user per model across the application
-		userUniqueKey := "users_user_name_email_keyX"
+		// usually, only one value is used per model
+		userUniqueKey := "users_user_name_email_key"
 
 		// register composite constraint
 		err := tx.RawQuery("ALTER TABLE users ADD UNIQUE(user_name, email)").Exec()
