@@ -101,7 +101,7 @@ func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constra
 	case "int", "int64":
 		// only allow inserting the ID if it's actually set
 		fbn, err := model.fieldByName("ID")
-		if err == nil {
+		if err != nil {
 			return err
 		}
 		if insertID && !IsZeroOfUnderlyingType(fbn.Interface()) {
