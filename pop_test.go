@@ -80,8 +80,6 @@ func ts(s string) string {
 	return PDB.Dialect.TranslateSQL(s)
 }
 
-const UserUniqueKey = "users_pkey"
-
 type Client struct {
 	ClientID string `db:"id"`
 }
@@ -89,6 +87,8 @@ type Client struct {
 func (c Client) TableName() string {
 	return "clients"
 }
+
+const UserUniqueKey = "users_pkey"
 
 type User struct {
 	ID           int           `db:"id"`

@@ -93,7 +93,6 @@ func (p *postgresql) Update(s store, model *Model, cols columns.Columns) error {
 }
 
 func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constraint string, insertID bool) error {
-	fmt.Println("YOU ARE HERE ~")
 	keyType, err := model.PrimaryKeyType()
 	if err != nil {
 		return err
@@ -102,7 +101,10 @@ func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constra
 	case "int", "int64":
 		// only allow inserting the ID if it's actually set
 		fbn, err := model.fieldByName("ID")
-		if insertID && err == nil && !IsZeroOfUnderlyingType(fbn.Interface()) {
+		if err == nil {
+			return err
+		}
+		if insertID && !IsZeroOfUnderlyingType(fbn.Interface()) {
 			cols.Cols["id"].Writeable = true
 		} else {
 			cols.Remove("id")
@@ -125,8 +127,8 @@ func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constra
 		}
 		err = stmt.Get(&id, model.Value)
 		if err != nil {
-			if err := stmt.Close(); err != nil {
-				return errors.WithMessage(err, "failed to close statement")
+			if closeErr := stmt.Close(); err != nil {
+				return errors.Wrapf(err, "failed to close prepared statement: %s", closeErr)
 			}
 			return err
 		}

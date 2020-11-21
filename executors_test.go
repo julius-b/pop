@@ -1,6 +1,7 @@
 package pop
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -1501,13 +1502,13 @@ func Test_Upsert_Update(t *testing.T) {
 	transaction(func(tx *Connection) {
 		r := require.New(t)
 
-		insertPrepUser := User{Name: nulls.NewString("Alastor 'Mad-Eye' Moody")}
+		insertPrepUser := User{Name: nulls.NewString("Alastor Moody")}
 		err := tx.Create(&insertPrepUser, UserUniqueKey)
 		r.NoError(err)
 		r.NotEqual(0, insertPrepUser.ID)
 
 		user := User{}
-		q := tx.Where("name = ?", "Alastor 'Mad-Eye' Moody")
+		q := tx.Where("name = ?", "Alastor Moody")
 		err = q.First(&user)
 		r.NoError(err)
 		initialID := user.ID
@@ -1560,19 +1561,23 @@ func Test_Upsert_Update_With_Composite_Constraint(t *testing.T) {
 		r.NoError(err)
 		r.NotEqual(0, user.ID)
 		initialID := user.ID
+		fmt.Printf("Initial User: %#v\n", user)
 
 		// change name (UserName & Email stay the same)
-		user.Name = nulls.NewString("User (updated)")
+		user = User{Name: nulls.NewString("User (updated)"), UserName: user.UserName, Email: user.Email}
 		err = tx.Upsert(&user, userUniqueKey, false)
 		r.NoError(err)
+		r.NotEqual(0, user.ID)
+		fmt.Printf("second user: %#v\n", user)
 
 		// ensure ID stayed the same
 		r.Equal(initialID, user.ID)
 
-		// change part composite key
+		// modify a field that is part of the composite key (-> force new entity)
 		user.UserName = "user_updated"
 		err = tx.Upsert(&user, userUniqueKey, false)
 		r.NoError(err)
+		r.NotEqual(0, user.ID)
 
 		// ensure ID did not stay the same
 		r.NotEqual(initialID, user.ID)
