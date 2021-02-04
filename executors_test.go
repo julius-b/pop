@@ -1,7 +1,6 @@
 package pop
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -508,6 +507,28 @@ func Test_Create_With_Non_ID_PK_String(t *testing.T) {
 		r.Equal(count+3, ctx)
 		r.NotEqual(djs[0].ID, djs[1].ID)
 		r.NotEqual(djs[1].ID, djs[2].ID)
+	})
+}
+
+func Test_Create_Non_PK_ID(t *testing.T) {
+	if PDB == nil {
+		t.Skip("skipping integration tests")
+	}
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		r.NoError(tx.Create(&NonStandardID{OutfacingID: "make sure the tested entry does not have pk=0"}))
+
+		count, err := tx.Count(&NonStandardID{})
+		entry := &NonStandardID{
+			OutfacingID: "beautiful to the outside ID",
+		}
+		r.NoError(tx.Create(entry))
+
+		ctx, err := tx.Count(&NonStandardID{})
+		r.NoError(err)
+		r.Equal(count+1, ctx)
+		r.NotZero(entry.ID)
 	})
 }
 
@@ -1471,6 +1492,54 @@ func Test_Update_UUID(t *testing.T) {
 	})
 }
 
+func Test_Update_With_Non_ID_PK(t *testing.T) {
+	if PDB == nil {
+		t.Skip("skipping integration tests")
+	}
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		r.NoError(tx.Create(&CrookedColour{Name: "cc is not the first one"}))
+
+		cc := CrookedColour{
+			Name: "You?",
+		}
+		err := tx.Create(&cc)
+		r.NoError(err)
+		r.NotZero(cc.ID)
+		id := cc.ID
+
+		updatedName := "Me!"
+		cc.Name = updatedName
+		r.NoError(tx.Update(&cc))
+		r.Equal(id, cc.ID)
+
+		r.NoError(tx.Reload(&cc))
+		r.Equal(updatedName, cc.Name)
+		r.Equal(id, cc.ID)
+	})
+}
+
+func Test_Update_Non_PK_ID(t *testing.T) {
+	if PDB == nil {
+		t.Skip("skipping integration tests")
+	}
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		client := &NonStandardID{
+			OutfacingID: "my awesome hydra client",
+		}
+		r.NoError(tx.Create(client))
+
+		updatedID := "your awesome hydra client"
+		client.OutfacingID = updatedID
+		r.NoError(tx.Update(client))
+		r.NoError(tx.Reload(client))
+		r.Equal(updatedID, client.OutfacingID)
+	})
+}
+
 func Test_Upsert_Create(t *testing.T) {
 	if PDB == nil {
 		t.Skip("skipping integration tests")
@@ -1480,9 +1549,15 @@ func Test_Upsert_Create(t *testing.T) {
 
 		count, _ := tx.Count(&User{})
 		user := User{Name: nulls.NewString("Stan Shunpike")}
+		r.Equal(time.Time{}, user.CreatedAt)
+		r.Equal(time.Time{}, user.UpdatedAt)
 		err := tx.Upsert(&user, UserUniqueKey, false)
 		r.NoError(err)
+
+		t.Logf("TUC - cA: %v, uA: %v", user.CreatedAt, user.UpdatedAt)
 		r.NotEqual(0, user.ID)
+		r.NotEqual(time.Time{}, user.CreatedAt)
+		r.True(user.CreatedAt.Before(user.UpdatedAt))
 
 		ctx, _ := tx.Count(&User{})
 		r.Equal(count+1, ctx)
@@ -1506,6 +1581,11 @@ func Test_Upsert_Update(t *testing.T) {
 		err := tx.Create(&insertPrepUser, UserUniqueKey)
 		r.NoError(err)
 		r.NotEqual(0, insertPrepUser.ID)
+		// CreatedAt must stay the same while UpdatedAt should be updated
+		t.Logf("TUU [create] - cA: %v, cU: %v", insertPrepUser.CreatedAt, insertPrepUser.UpdatedAt)
+		r.NotEqual(time.Time{}, insertPrepUser.CreatedAt)
+		r.NotEqual(time.Time{}, insertPrepUser.UpdatedAt)
+		r.True(insertPrepUser.CreatedAt.Before(insertPrepUser.UpdatedAt))
 
 		user := User{}
 		q := tx.Where("name = ?", "Alastor Moody")
@@ -1513,6 +1593,7 @@ func Test_Upsert_Update(t *testing.T) {
 		r.NoError(err)
 		initialID := user.ID
 		initialCreatedAt := user.CreatedAt
+		initialUpdatedAt := user.UpdatedAt
 
 		// change name
 		user.Name = nulls.NewString("Barty Crouch Jr")
@@ -1521,9 +1602,13 @@ func Test_Upsert_Update(t *testing.T) {
 		err = tx.Upsert(&user, UserUniqueKey, true)
 		r.NoError(err)
 
-		// ensure ID & CreatedAt stayed the same
+		t.Logf("TUU [update] - cA: %v, cU: %v", user.CreatedAt, user.UpdatedAt)
+		// ensure ID & CreatedAt stayed the same (test idempotence)
 		r.Equal(initialID, user.ID)
 		r.Equal(initialCreatedAt, user.CreatedAt)
+		r.NotEqual(initialUpdatedAt, user.UpdatedAt)
+		r.True(user.CreatedAt.Before(user.UpdatedAt))
+		r.True(initialUpdatedAt.Before(user.UpdatedAt))
 
 		// ensure new value exists
 		u := User{}
@@ -1552,7 +1637,7 @@ func Test_Upsert_Update_With_Composite_Constraint(t *testing.T) {
 		// usually, only one value is used per model
 		userUniqueKey := "users_user_name_email_key"
 
-		// register composite constraint
+		// register composite constraint (in real code this would be part of .up.fizz)
 		err := tx.RawQuery("ALTER TABLE users ADD UNIQUE(user_name, email)").Exec()
 		r.NoError(err)
 
@@ -1561,17 +1646,21 @@ func Test_Upsert_Update_With_Composite_Constraint(t *testing.T) {
 		r.NoError(err)
 		r.NotEqual(0, user.ID)
 		initialID := user.ID
-		fmt.Printf("Initial User: %#v\n", user)
+		initialCreatedAt := user.CreatedAt
+		initialUpdatedAt := user.UpdatedAt
+		//fmt.Printf("Initial User: %#v\n", user)
 
 		// change name (UserName & Email stay the same)
 		user = User{Name: nulls.NewString("User (updated)"), UserName: user.UserName, Email: user.Email}
 		err = tx.Upsert(&user, userUniqueKey, false)
 		r.NoError(err)
 		r.NotEqual(0, user.ID)
-		fmt.Printf("second user: %#v\n", user)
+		//fmt.Printf("second user: %#v\n", user)
 
 		// ensure ID stayed the same
 		r.Equal(initialID, user.ID)
+		r.Equal(initialCreatedAt, user.CreatedAt)
+		r.NotEqual(initialUpdatedAt, user.UpdatedAt)
 
 		// modify a field that is part of the composite key (-> force new entity)
 		user.UserName = "user_updated"

@@ -100,40 +100,41 @@ func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constra
 	switch keyType {
 	case "int", "int64":
 		// only allow inserting the ID if it's actually set
+		// model.IDField() returns 'id', but 'ID' is required
 		fbn, err := model.fieldByName("ID")
 		if err != nil {
 			return err
 		}
 		if insertID && !IsZeroOfUnderlyingType(fbn.Interface()) {
-			cols.Cols["id"].Writeable = true
+			cols.Cols[model.IDField()].Writeable = true
 		} else {
-			cols.Remove("id")
+			cols.Remove(model.IDField())
 		}
-		id := struct {
-			ID        int       `db:"id"`
-			CreatedAt time.Time `db:"created_at"`
-		}{}
 		w := cols.Writeable()
 		var query string
 		if len(w.Cols) > 0 {
-			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateString(p, "created_at"))
+			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning %s, created_at", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateString(p, "created_at"), model.IDField())
 		} else {
-			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), constraint, w.QuotedUpdateString(p, "created_at"))
+			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning %s, created_at", p.Quote(model.TableName()), constraint, w.QuotedUpdateString(p, "created_at"), model.IDField())
 		}
 		log(logging.SQL, query)
 		stmt, err := s.PrepareNamed(query)
 		if err != nil {
 			return err
 		}
-		err = stmt.Get(&id, model.Value)
+		// createdAt and updatedAt are set to the current time by connection.Upsert.
+		// but createdAt may have already been set previously (if the id already exists) so we need to return it's value,
+		// whereas updatedAs is the current time no matter if create or update
+		id := map[string]interface{}{}
+		err = stmt.QueryRow(model.Value).MapScan(id)
 		if err != nil {
 			if closeErr := stmt.Close(); err != nil {
 				return errors.Wrapf(err, "failed to close prepared statement: %s", closeErr)
 			}
 			return err
 		}
-		model.setID(id.ID)
-		model.setCreatedAt(id.CreatedAt)
+		model.setID(id[model.IDField()])
+		model.setCreatedAt(id["created_at"].(time.Time))
 		return errors.WithMessage(stmt.Close(), "failed to close statement")
 	}
 	return ErrNotImplemented

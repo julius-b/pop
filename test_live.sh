@@ -3,6 +3,8 @@
 ########################################################
 # test.sh is a wrapper to execute integration tests for
 # pop.
+
+# TODO: on ctrl+c in go test, only cancel go but allow re-running immediately
 ########################################################
 
 # abort on error
@@ -10,6 +12,11 @@ set -e
 
 # print statements with expanded vairables
 set -x
+
+# Job Control, allow ctrl+c for go test without cancelling the script
+#set -m
+# TODO this doesn't work, find another way
+
 clear
 
 VERBOSE=""
@@ -44,8 +51,7 @@ trap cleanup EXIT
 docker-compose up -d
 sleep 5 # Ensure mysql is online
 
-#go build -v -tags sqlite -o tsoda ./soda
-go build -v -o tsoda ./soda
+go build -v -tags sqlite -o tsoda ./soda
 
 export GO111MODULE=on
 
@@ -60,7 +66,8 @@ function test {
   echo "Test..."
   # requires root permission for cockroach-db storage
   #go test -race -tags sqlite $VERBOSE ./... -count=1
-  go test -race $VERBOSE ./... -count=1
+  #go test -race $VERBOSE ./... -count=1
+  go test -race $VERBOSE -run Upsert
 }
 
 function debug_test {
@@ -78,10 +85,15 @@ function debug_test {
 # dialects=("postgres" "cockroach" "mysql" "sqlite")
 dialects=("postgres")
 
-for dialect in "${dialects[@]}" ; do
-  if [ $DEBUG = 'NO' ]; then
-  test ${dialect}
-  else
-  debug_test ${dialect}
-  fi
+# keep docker running, wait for EXIT (eg. ctrl+d)
+while :
+do
+  read -p "[+] Press enter to run reseed & test, ctrl+c to cancel"
+  for dialect in "${dialects[@]}" ; do
+    if [ $DEBUG = 'NO' ]; then
+    test ${dialect}
+    else
+    debug_test ${dialect}
+    fi
+  done
 done
