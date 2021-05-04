@@ -74,9 +74,11 @@ func (c *Columns) Add(names ...string) []*Column {
 				} else if xs[1] == "w" {
 					col.Readable = false
 				}
-			} else if col.Name == "id" {
-				col.Writeable = false
 			}
+			// TODO why shouldn't ID be writeable?
+			/*else if col.Name == "id" {
+				col.Writeable = false
+			}*/
 
 			c.Cols[col.Name] = col
 		}

@@ -2,10 +2,11 @@ package pop
 
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/gobuffalo/flect"
 	nflect "github.com/gobuffalo/flect/name"
@@ -63,7 +64,13 @@ func (m *Model) PrimaryKeyType() (string, error) {
 	if err != nil {
 		return "", errors.Errorf("model %T is missing required field ID", m.Value)
 	}
-	return fbn.Type().Name(), nil
+	typ := fbn.Type()
+	kind := typ.Kind()
+	// treat int typedefs as int
+	if kind == reflect.Int || kind == reflect.Int64 {
+		return kind.String(), nil
+	}
+	return typ.Name(), nil
 }
 
 // TableNameAble interface allows for the customize table mapping

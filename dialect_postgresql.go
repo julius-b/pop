@@ -61,13 +61,16 @@ func (p *postgresql) Create(s store, model *Model, cols columns.Columns) error {
 	}
 	switch keyType {
 	case "int", "int64":
-		cols.Remove(model.IDField())
+		log(logging.Info, "psql.Create - table: %s, id: %d", model.TableName(), model.ID())
+		if IsZeroOfUnderlyingType(model.ID()) {
+			cols.Remove(model.IDField())
+		}
 		w := cols.Writeable()
 		var query string
 		if len(w.Cols) > 0 {
-			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) returning %s", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), model.IDField())
+			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) returning %s", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), p.Quote(model.IDField()))
 		} else {
-			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES returning %s", p.Quote(model.TableName()), model.IDField())
+			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES returning %s", p.Quote(model.TableName()), p.Quote(model.IDField()))
 		}
 		log(logging.SQL, query)
 		stmt, err := s.PrepareNamed(query)
@@ -116,9 +119,9 @@ func (p *postgresql) Upsert(s store, model *Model, cols columns.Columns, constra
 		w := cols.Writeable()
 		var query string
 		if len(w.Cols) > 0 {
-			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateString(p, "created_at"))
+			query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning %s, created_at", p.Quote(model.TableName()), w.QuotedString(p), w.SymbolizedString(), constraint, w.QuotedUpdateString(p, "created_at"), p.Quote(model.IDField()))
 		} else {
-			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning id, created_at", p.Quote(model.TableName()), constraint, w.QuotedUpdateString(p, "created_at"))
+			query = fmt.Sprintf("INSERT INTO %s DEFAULT VALUES ON CONFLICT ON CONSTRAINT %s DO UPDATE SET %s returning %s, created_at", p.Quote(model.TableName()), constraint, w.QuotedUpdateString(p, "created_at"), p.Quote(model.IDField()))
 		}
 		log(logging.SQL, query)
 		stmt, err := s.PrepareNamed(query)
