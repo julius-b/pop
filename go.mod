@@ -5,14 +5,12 @@ go 1.13
 replace github.com/mattn/go-sqlite3 => github.com/mattn/go-sqlite3 v1.14.0
 
 require (
-	github.com/cockroachdb/cockroach-go v2.0.1+incompatible // indirect
 	github.com/fatih/color v1.9.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gobuffalo/attrs v0.1.0
 	github.com/gobuffalo/envy v1.8.1
 	github.com/gobuffalo/fizz v1.10.0
 	github.com/gobuffalo/flect v0.2.1
-	github.com/gobuffalo/genny v0.6.0 // indirect
 	github.com/gobuffalo/genny/v2 v2.0.5
 	github.com/gobuffalo/helpers v0.6.1 // indirect
 	github.com/gobuffalo/logger v1.0.3
@@ -20,8 +18,6 @@ require (
 	github.com/gobuffalo/packd v1.0.0
 	github.com/gobuffalo/packr/v2 v2.8.0
 	github.com/gobuffalo/plush/v4 v4.0.0
-	github.com/gobuffalo/pop v4.13.1+incompatible // indirect
-	github.com/gobuffalo/validate v2.0.4+incompatible // indirect
 	github.com/gobuffalo/validate/v3 v3.1.0
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/jackc/pgconn v1.8.0
