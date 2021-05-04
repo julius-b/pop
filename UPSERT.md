@@ -2,14 +2,14 @@
 `ON CONFLICT ON CONSTRAINT * DO UPDATE`
 
 ## Features
-- extends the `crudable` interface with an `Upsert` method
+- extends the `crudable` interface with an `Upsert` method (_Idempotence_ is especially important for network services)
 - `beforeUpsert` & `afterUpsert` callbacks
   - can't reuse Create/Update callbacks because we don't know which action will be chosen ahead of time
 - handles `CreatedAt` & `UpdatedAt` correctly
 
 ## Limitations
 - only works for postgres (ErrNotImplemented for every other database)
-- only works for `int` & `int64` primary keys
+- only works for `int` & `int64` primary keys (db rowname must be `id`)
   - suggestion: use an `int` as primary key and a `UUID` for public-facing resources (db-internal referencing de-coupled from the public)
 - only supports one `UNIQUE CONSTRAINT`
   - requires caller to specify said `CONSTRAINT` for every invocation
