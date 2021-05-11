@@ -32,7 +32,7 @@ func (c *Columns) Add(names ...string) []*Column {
 		var col *Column
 		ss := ""
 		//support for distinct xx, or distinct on (field) table.fields
-		if strings.HasSuffix(name, ",r") || strings.HasSuffix(name, ",w") {
+		if strings.HasSuffix(name, ",r") || strings.HasSuffix(name, ",w") || strings.HasSuffix(name, ",x") {
 			xs = []string{name[0 : len(name)-2], name[len(name)-1:]}
 		} else {
 			xs = []string{name}
@@ -74,12 +74,13 @@ func (c *Columns) Add(names ...string) []*Column {
 					col.Writeable = false
 				} else if xs[1] == "w" {
 					col.Readable = false
+				} else if xs[1] == "x" {
+					// do nothing: even IDField stays writeable & readable
 				}
-			}
-			// TODO why shouldn't ID be writeable?
-			/*else if col.Name == c.IDField {
+			} else if col.Name == c.IDField {
+				// TODO why shouldn't ID be writeable?
 				col.Writeable = false
-			}*/
+			}
 
 			c.Cols[col.Name] = col
 		}

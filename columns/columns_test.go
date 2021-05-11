@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gobuffalo/nulls"
 	"github.com/gobuffalo/pop/v5/columns"
 	"github.com/stretchr/testify/require"
 )
@@ -114,4 +115,26 @@ func Test_Columns_ID_Field_Not_ID(t *testing.T) {
 	c := columns.ForStruct(withNonStandardID{}, "non_standard_id", "notid")
 	r.Equal(1, len(c.Cols), "%+v", c)
 	r.Equal(&columns.Column{Name: "notid", Writeable: false, Readable: true, SelectSQL: "non_standard_id.notid"}, c.Cols["notid"])
+}
+
+type bar struct {
+	foo        `db:"foo,inline"`
+	MiddleName string       `db:"middle_name"`
+	Bio        nulls.String `db:"bio"`
+}
+
+func Test_Columns_Embedded(t *testing.T) {
+	r := require.New(t)
+
+	c := columns.ForStruct(bar{}, "bar", "id")
+
+	r.Equal(c.Cols["first_name"], &columns.Column{Name: "first_name", Writeable: false, Readable: true, SelectSQL: "first_name as f"})
+	r.Equal(c.Cols["middle_name"], &columns.Column{Name: "middle_name", Writeable: true, Readable: true, SelectSQL: "bar.middle_name"})
+	r.Equal(c.Cols["LastName"], &columns.Column{Name: "LastName", Writeable: true, Readable: true, SelectSQL: "bar.LastName"})
+	r.Equal(c.Cols["read"], &columns.Column{Name: "read", Writeable: false, Readable: true, SelectSQL: "bar.read"})
+	r.Equal(c.Cols["write"], &columns.Column{Name: "write", Writeable: true, Readable: false, SelectSQL: "bar.write"})
+	r.Equal(c.Cols["foo"], &columns.Column{Name: "foo", Writeable: true, Readable: true, SelectSQL: "bar.foo"})
+	// Ensure it's not including non-inlined structs (nulls.String)
+	r.NotContains(c.Cols, "String")
+	r.NotContains(c.Cols, "Valid")
 }
